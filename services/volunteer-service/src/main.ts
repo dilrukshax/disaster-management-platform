@@ -2,45 +2,12 @@ import cors from "cors";
 import dotenv from "dotenv";
 import express, { NextFunction, Request, Response } from "express";
 import jwt from "jsonwebtoken";
-import { v4 as uuidv4 } from "uuid";
+import { AssignmentStatus, PrismaClient, ResourceAvailability, VolunteerAvailability } from "../generated/client/index.js";
 import { z } from "zod";
 
 dotenv.config({ path: "../../.env" });
 
 type Role = "requester" | "volunteer" | "coordinator" | "admin";
-
-type Volunteer = {
-  id: string;
-  userId: string;
-  skillSet: string[];
-  district: string;
-  city: string;
-  availabilityStatus: "available" | "busy" | "offline";
-  createdAt: string;
-  updatedAt: string;
-};
-
-type Resource = {
-  id: string;
-  ownerId: string;
-  category: string;
-  quantity: number;
-  district: string;
-  city: string;
-  availabilityStatus: "available" | "reserved" | "unavailable";
-  createdAt: string;
-  updatedAt: string;
-};
-
-type Assignment = {
-  id: string;
-  requestId: string;
-  volunteerId?: string;
-  resourceId?: string;
-  assignedBy: string;
-  status: "assigned" | "in_progress" | "completed";
-  assignedAt: string;
-};
 
 type AuthRequest = Request & {
   user?: {
@@ -55,24 +22,21 @@ const port = Number(process.env.PORT ?? 3003);
 const jwtSecret = process.env.JWT_SECRET ?? "dev-super-secret";
 const requestServiceUrl = process.env.REQUEST_SERVICE_URL ?? "http://localhost:3002";
 const notificationServiceUrl = process.env.NOTIFICATION_SERVICE_URL ?? "http://localhost:3004";
+const prisma = new PrismaClient();
 
 app.use(cors());
 app.use(express.json());
-
-const volunteers: Volunteer[] = [];
-const resources: Resource[] = [];
-const assignments: Assignment[] = [];
 
 const volunteerSchema = z.object({
   userId: z.string().min(1),
   skillSet: z.array(z.string()).default([]),
   district: z.string().min(2),
   city: z.string().min(2),
-  availabilityStatus: z.enum(["available", "busy", "offline"]).default("available")
+  availabilityStatus: z.nativeEnum(VolunteerAvailability).default(VolunteerAvailability.available)
 });
 
 const availabilitySchema = z.object({
-  availabilityStatus: z.enum(["available", "busy", "offline"])
+  availabilityStatus: z.nativeEnum(VolunteerAvailability)
 });
 
 const resourceSchema = z.object({
@@ -81,14 +45,14 @@ const resourceSchema = z.object({
   quantity: z.number().int().positive(),
   district: z.string().min(2),
   city: z.string().min(2),
-  availabilityStatus: z.enum(["available", "reserved", "unavailable"]).default("available")
+  availabilityStatus: z.nativeEnum(ResourceAvailability).default(ResourceAvailability.available)
 });
 
 const assignmentSchema = z.object({
   requestId: z.string().min(1),
   volunteerId: z.string().optional(),
   resourceId: z.string().optional(),
-  status: z.enum(["assigned", "in_progress", "completed"]).default("assigned")
+  status: z.nativeEnum(AssignmentStatus).default(AssignmentStatus.assigned)
 });
 
 const authMiddleware = (req: AuthRequest, res: Response, next: NextFunction): void => {
@@ -132,7 +96,7 @@ app.get("/health", (_req, res) => {
   res.json({ service: "volunteer-service", status: "ok" });
 });
 
-app.post("/api/v1/volunteers", authMiddleware, (req: AuthRequest, res) => {
+app.post("/api/v1/volunteers", authMiddleware, async (req: AuthRequest, res) => {
   const parsed = volunteerSchema.safeParse(req.body);
   if (!parsed.success) {
     res.status(400).json({ message: parsed.error.flatten() });
@@ -144,33 +108,29 @@ app.post("/api/v1/volunteers", authMiddleware, (req: AuthRequest, res) => {
     return;
   }
 
-  const record: Volunteer = {
-    id: uuidv4(),
-    userId: parsed.data.userId,
-    skillSet: parsed.data.skillSet,
-    district: parsed.data.district,
-    city: parsed.data.city,
-    availabilityStatus: parsed.data.availabilityStatus,
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString()
-  };
+  const existing = await prisma.volunteer.findUnique({ where: { userId: parsed.data.userId } });
+  if (existing) {
+    res.status(409).json({ message: "Volunteer profile already exists" });
+    return;
+  }
 
-  volunteers.push(record);
+  const record = await prisma.volunteer.create({ data: parsed.data });
   res.status(201).json(record);
 });
 
-app.get("/api/v1/volunteers", authMiddleware, (_req, res) => {
+app.get("/api/v1/volunteers", authMiddleware, async (_req, res) => {
+  const volunteers = await prisma.volunteer.findMany({ orderBy: { createdAt: "desc" } });
   res.json(volunteers);
 });
 
-app.patch("/api/v1/volunteers/:id/availability", authMiddleware, (req: AuthRequest, res) => {
+app.patch("/api/v1/volunteers/:id/availability", authMiddleware, async (req: AuthRequest, res) => {
   const parsed = availabilitySchema.safeParse(req.body);
   if (!parsed.success) {
     res.status(400).json({ message: parsed.error.flatten() });
     return;
   }
 
-  const volunteer = volunteers.find((v) => v.id === req.params.id);
+  const volunteer = await prisma.volunteer.findUnique({ where: { id: req.params.id } });
   if (!volunteer) {
     res.status(404).json({ message: "Volunteer not found" });
     return;
@@ -181,42 +141,34 @@ app.patch("/api/v1/volunteers/:id/availability", authMiddleware, (req: AuthReque
     return;
   }
 
-  volunteer.availabilityStatus = parsed.data.availabilityStatus;
-  volunteer.updatedAt = new Date().toISOString();
+  const updated = await prisma.volunteer.update({
+    where: { id: req.params.id },
+    data: { availabilityStatus: parsed.data.availabilityStatus }
+  });
 
-  res.json(volunteer);
+  res.json(updated);
 });
 
-app.post("/api/v1/resources", authMiddleware, (req: AuthRequest, res) => {
+app.post("/api/v1/resources", authMiddleware, async (req: AuthRequest, res) => {
   const parsed = resourceSchema.safeParse(req.body);
   if (!parsed.success) {
     res.status(400).json({ message: parsed.error.flatten() });
     return;
   }
 
-  const record: Resource = {
-    id: uuidv4(),
-    ownerId: parsed.data.ownerId,
-    category: parsed.data.category,
-    quantity: parsed.data.quantity,
-    district: parsed.data.district,
-    city: parsed.data.city,
-    availabilityStatus: parsed.data.availabilityStatus,
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString()
-  };
-
-  resources.push(record);
+  const record = await prisma.resource.create({ data: parsed.data });
   res.status(201).json(record);
 });
 
-app.get("/api/v1/resources", authMiddleware, (req, res) => {
+app.get("/api/v1/resources", authMiddleware, async (req, res) => {
   const { district, category } = req.query;
 
-  const filtered = resources.filter((item) => {
-    const districtMatch = district ? item.district.toLowerCase() === String(district).toLowerCase() : true;
-    const categoryMatch = category ? item.category.toLowerCase() === String(category).toLowerCase() : true;
-    return districtMatch && categoryMatch;
+  const filtered = await prisma.resource.findMany({
+    where: {
+      ...(district ? { district: { equals: String(district), mode: "insensitive" } } : {}),
+      ...(category ? { category: { equals: String(category), mode: "insensitive" } } : {})
+    },
+    orderBy: { createdAt: "desc" }
   });
 
   res.json(filtered);
@@ -238,27 +190,25 @@ app.post("/api/v1/assignments", authMiddleware, requireCoordinatorOrAdmin, async
     return;
   }
 
-  if (parsed.data.volunteerId && !volunteers.find((v) => v.id === parsed.data.volunteerId)) {
+  if (parsed.data.volunteerId && !(await prisma.volunteer.findUnique({ where: { id: parsed.data.volunteerId } }))) {
     res.status(404).json({ message: "Volunteer not found" });
     return;
   }
 
-  if (parsed.data.resourceId && !resources.find((r) => r.id === parsed.data.resourceId)) {
+  if (parsed.data.resourceId && !(await prisma.resource.findUnique({ where: { id: parsed.data.resourceId } }))) {
     res.status(404).json({ message: "Resource not found" });
     return;
   }
 
-  const assignment: Assignment = {
-    id: uuidv4(),
-    requestId: parsed.data.requestId,
-    volunteerId: parsed.data.volunteerId,
-    resourceId: parsed.data.resourceId,
-    assignedBy: req.user?.userId ?? "system",
-    status: parsed.data.status,
-    assignedAt: new Date().toISOString()
-  };
-
-  assignments.push(assignment);
+  const assignment = await prisma.assignment.create({
+    data: {
+      requestId: parsed.data.requestId,
+      volunteerId: parsed.data.volunteerId,
+      resourceId: parsed.data.resourceId,
+      assignedBy: req.user?.userId ?? "system",
+      status: parsed.data.status
+    }
+  });
 
   await fetch(`${requestServiceUrl}/api/v1/requests/${parsed.data.requestId}/status`, {
     method: "PATCH",
@@ -270,7 +220,7 @@ app.post("/api/v1/assignments", authMiddleware, requireCoordinatorOrAdmin, async
   });
 
   if (parsed.data.volunteerId) {
-    const volunteer = volunteers.find((v) => v.id === parsed.data.volunteerId);
+    const volunteer = await prisma.volunteer.findUnique({ where: { id: parsed.data.volunteerId } });
     if (volunteer) {
       await callNotification(volunteer.userId, `You were assigned to request ${parsed.data.requestId}`);
     }
@@ -279,8 +229,11 @@ app.post("/api/v1/assignments", authMiddleware, requireCoordinatorOrAdmin, async
   res.status(201).json(assignment);
 });
 
-app.get("/api/v1/assignments/:requestId", authMiddleware, (req, res) => {
-  const records = assignments.filter((a) => a.requestId === req.params.requestId);
+app.get("/api/v1/assignments/:requestId", authMiddleware, async (req, res) => {
+  const records = await prisma.assignment.findMany({
+    where: { requestId: req.params.requestId },
+    orderBy: { assignedAt: "desc" }
+  });
   res.json(records);
 });
 

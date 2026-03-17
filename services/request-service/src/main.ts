@@ -2,26 +2,12 @@ import cors from "cors";
 import dotenv from "dotenv";
 import express, { NextFunction, Request, Response } from "express";
 import jwt from "jsonwebtoken";
-import { v4 as uuidv4 } from "uuid";
+import { PrismaClient, RequestCategory, RequestStatus, Urgency } from "../generated/client/index.js";
 import { z } from "zod";
 
 dotenv.config({ path: "../../.env" });
 
 type Role = "requester" | "volunteer" | "coordinator" | "admin";
-
-type ReliefRequest = {
-  id: string;
-  requesterId: string;
-  category: "water" | "food" | "medicine" | "shelter" | "rescue" | "transport" | "other";
-  description: string;
-  urgency: "low" | "medium" | "high";
-  district: string;
-  city: string;
-  peopleCount: number;
-  status: "pending" | "matched" | "assigned" | "in_progress" | "completed" | "cancelled";
-  createdAt: string;
-  updatedAt: string;
-};
 
 type AuthRequest = Request & {
   user?: {
@@ -35,32 +21,31 @@ const app = express();
 const port = Number(process.env.PORT ?? 3002);
 const jwtSecret = process.env.JWT_SECRET ?? "dev-super-secret";
 const notificationServiceUrl = process.env.NOTIFICATION_SERVICE_URL ?? "http://localhost:3004";
+const prisma = new PrismaClient();
 
 app.use(cors());
 app.use(express.json());
 
-const requests: ReliefRequest[] = [];
-
 const createSchema = z.object({
-  category: z.enum(["water", "food", "medicine", "shelter", "rescue", "transport", "other"]),
+  category: z.nativeEnum(RequestCategory),
   description: z.string().min(5),
-  urgency: z.enum(["low", "medium", "high"]),
+  urgency: z.nativeEnum(Urgency),
   district: z.string().min(2),
   city: z.string().min(2),
   peopleCount: z.number().int().positive()
 });
 
 const updateSchema = z.object({
-  category: z.enum(["water", "food", "medicine", "shelter", "rescue", "transport", "other"]).optional(),
+  category: z.nativeEnum(RequestCategory).optional(),
   description: z.string().min(5).optional(),
-  urgency: z.enum(["low", "medium", "high"]).optional(),
+  urgency: z.nativeEnum(Urgency).optional(),
   district: z.string().min(2).optional(),
   city: z.string().min(2).optional(),
   peopleCount: z.number().int().positive().optional()
 });
 
 const statusSchema = z.object({
-  status: z.enum(["pending", "matched", "assigned", "in_progress", "completed", "cancelled"])
+  status: z.nativeEnum(RequestStatus)
 });
 
 const authMiddleware = (req: AuthRequest, res: Response, next: NextFunction): void => {
@@ -121,21 +106,18 @@ app.post("/api/v1/requests", authMiddleware, async (req: AuthRequest, res) => {
     return;
   }
 
-  const record: ReliefRequest = {
-    id: uuidv4(),
-    requesterId: req.user.userId,
-    category: parsed.data.category,
-    description: parsed.data.description,
-    urgency: parsed.data.urgency,
-    district: parsed.data.district,
-    city: parsed.data.city,
-    peopleCount: parsed.data.peopleCount,
-    status: "pending",
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString()
-  };
-
-  requests.push(record);
+  const record = await prisma.reliefRequest.create({
+    data: {
+      requesterId: req.user.userId,
+      category: parsed.data.category,
+      description: parsed.data.description,
+      urgency: parsed.data.urgency,
+      district: parsed.data.district,
+      city: parsed.data.city,
+      peopleCount: parsed.data.peopleCount,
+      status: RequestStatus.pending
+    }
+  });
 
   await notify({
     userId: req.user.userId,
@@ -152,19 +134,19 @@ app.post("/api/v1/requests", authMiddleware, async (req: AuthRequest, res) => {
 app.get("/api/v1/requests", authMiddleware, (req, res) => {
   const { status, urgency, district, category } = req.query;
 
-  const filtered = requests.filter((item) => {
-    const statusMatch = status ? item.status === status : true;
-    const urgencyMatch = urgency ? item.urgency === urgency : true;
-    const districtMatch = district ? item.district.toLowerCase() === String(district).toLowerCase() : true;
-    const categoryMatch = category ? item.category === category : true;
-    return statusMatch && urgencyMatch && districtMatch && categoryMatch;
-  });
-
-  res.json(filtered);
+  prisma.reliefRequest.findMany({
+    where: {
+      ...(status ? { status: String(status) as RequestStatus } : {}),
+      ...(urgency ? { urgency: String(urgency) as Urgency } : {}),
+      ...(district ? { district: { equals: String(district), mode: "insensitive" } } : {}),
+      ...(category ? { category: String(category) as RequestCategory } : {})
+    },
+    orderBy: { createdAt: "desc" }
+  }).then((rows) => res.json(rows));
 });
 
-app.get("/api/v1/requests/:id", authMiddleware, (req, res) => {
-  const item = requests.find((r) => r.id === req.params.id);
+app.get("/api/v1/requests/:id", authMiddleware, async (req, res) => {
+  const item = await prisma.reliefRequest.findUnique({ where: { id: req.params.id } });
   if (!item) {
     res.status(404).json({ message: "Request not found" });
     return;
@@ -173,20 +155,24 @@ app.get("/api/v1/requests/:id", authMiddleware, (req, res) => {
   res.json(item);
 });
 
-app.patch("/api/v1/requests/:id", authMiddleware, (req: AuthRequest, res) => {
+app.patch("/api/v1/requests/:id", authMiddleware, async (req: AuthRequest, res) => {
   const parsed = updateSchema.safeParse(req.body);
   if (!parsed.success) {
     res.status(400).json({ message: parsed.error.flatten() });
     return;
   }
 
-  const item = requests.find((r) => r.id === req.params.id);
-  if (!item) {
+  const existing = await prisma.reliefRequest.findUnique({ where: { id: req.params.id } });
+  if (!existing) {
     res.status(404).json({ message: "Request not found" });
     return;
   }
 
-  Object.assign(item, parsed.data, { updatedAt: new Date().toISOString() });
+  const item = await prisma.reliefRequest.update({
+    where: { id: req.params.id },
+    data: parsed.data
+  });
+
   res.json(item);
 });
 
@@ -197,26 +183,28 @@ app.patch("/api/v1/requests/:id/status", authMiddleware, async (req: AuthRequest
     return;
   }
 
-  const item = requests.find((r) => r.id === req.params.id);
+  const item = await prisma.reliefRequest.findUnique({ where: { id: req.params.id } });
   if (!item) {
     res.status(404).json({ message: "Request not found" });
     return;
   }
 
   const oldStatus = item.status;
-  item.status = parsed.data.status;
-  item.updatedAt = new Date().toISOString();
+  const updated = await prisma.reliefRequest.update({
+    where: { id: req.params.id },
+    data: { status: parsed.data.status }
+  });
 
   await notify({
     userId: item.requesterId,
-    message: `Request ${item.id} status changed from ${oldStatus} to ${item.status}`,
+    message: `Request ${item.id} status changed from ${oldStatus} to ${updated.status}`,
     requestId: item.id,
-    oldStatus,
-    newStatus: item.status,
+    oldStatus: String(oldStatus),
+    newStatus: String(updated.status),
     changedBy: req.user?.userId ?? "system"
   });
 
-  res.json(item);
+  res.json(updated);
 });
 
 app.listen(port, () => {
