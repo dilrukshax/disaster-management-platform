@@ -1,0 +1,18 @@
+{
+  "name": "relieflink-platform",
+  "private": true,
+  "version": "1.0.0",
+  "packageManager": "pnpm@10.32.1",
+  "scripts": {
+    "dev:web": "pnpm --filter @relieflink/web dev",
+    "dev:auth": "pnpm --filter @relieflink/auth-service dev",
+    "dev:request": "pnpm --filter @relieflink/request-service dev",
+    "dev:volunteer": "pnpm --filter @relieflink/volunteer-service dev",
+    "dev:notification": "pnpm --filter @relieflink/notification-service dev",
+    "dev": "concurrently -k \"pnpm dev:auth\" \"pnpm dev:request\" \"pnpm dev:volunteer\" \"pnpm dev:notification\" \"pnpm dev:web\"",
+    "build": "pnpm --filter @relieflink/auth-service build && pnpm --filter @relieflink/request-service build && pnpm --filter @relieflink/volunteer-service build && pnpm --filter @relieflink/notification-service build && pnpm --filter @relieflink/web build"
+  },
+  "devDependencies": {
+    "concurrently": "^9.1.2"
+  }
+}
