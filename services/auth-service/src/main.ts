@@ -29,7 +29,7 @@ const registerSchema = z.object({
   email: z.string().email(),
   phone: z.string().min(8),
   password: z.string().min(8),
-  role: z.nativeEnum(Role).default(Role.requester),
+  role: z.enum(["requester", "volunteer"]).default("requester"),
   district: z.string().min(2),
   city: z.string().min(2)
 });
@@ -72,13 +72,17 @@ const seedAdmin = async (): Promise<void> => {
   const passwordHash = await bcrypt.hash("Admin@123", 10);
   await prisma.user.upsert({
     where: { email: "coordinator@relieflink.local" },
-    update: {},
+    update: {
+      fullName: "System Super Admin",
+      role: Role.admin,
+      passwordHash
+    },
     create: {
-      fullName: "System Coordinator",
+      fullName: "System Super Admin",
       email: "coordinator@relieflink.local",
       phone: "+94000000000",
       passwordHash,
-      role: Role.coordinator,
+      role: Role.admin,
       district: "Colombo",
       city: "Colombo"
     }
@@ -104,13 +108,14 @@ app.post("/api/v1/auth/register", async (req, res) => {
   }
 
   const passwordHash = await bcrypt.hash(parsed.data.password, 10);
+  const userRole = parsed.data.role === "volunteer" ? Role.volunteer : Role.requester;
   const user = await prisma.user.create({
     data: {
       fullName: parsed.data.fullName,
       email,
       phone: parsed.data.phone,
       passwordHash,
-      role: parsed.data.role,
+      role: userRole,
       district: parsed.data.district,
       city: parsed.data.city
     }

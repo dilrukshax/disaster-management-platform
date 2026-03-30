@@ -12,7 +12,9 @@
     "dev:volunteer": "pnpm --filter @relieflink/volunteer-service dev",
     "dev:notification": "pnpm --filter @relieflink/notification-service dev",
     "dev": "concurrently -k \"pnpm dev:config\" \"pnpm dev:gateway\" \"pnpm dev:auth\" \"pnpm dev:request\" \"pnpm dev:volunteer\" \"pnpm dev:notification\" \"pnpm dev:web\"",
-    "build": "pnpm --filter @relieflink/config-service build && pnpm --filter @relieflink/api-gateway build && pnpm --filter @relieflink/auth-service build && pnpm --filter @relieflink/request-service build && pnpm --filter @relieflink/volunteer-service build && pnpm --filter @relieflink/notification-service build && pnpm --filter @relieflink/web build"
+    "build": "pnpm --filter @relieflink/config-service build && pnpm --filter @relieflink/api-gateway build && pnpm --filter @relieflink/auth-service build && pnpm --filter @relieflink/request-service build && pnpm --filter @relieflink/volunteer-service build && pnpm --filter @relieflink/notification-service build && pnpm --filter @relieflink/web build",
+    "test:api-smoke": "node scripts/api-smoke.mjs",
+    "test:ui-smoke": "node scripts/ui-smoke.mjs"
   },
   "devDependencies": {
     "concurrently": "^9.1.2"

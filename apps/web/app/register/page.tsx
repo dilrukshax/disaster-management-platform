@@ -45,7 +45,6 @@ export default function RegisterPage() {
         <select value={form.role} onChange={(e) => setForm({ ...form, role: e.target.value })}>
           <option value="requester">requester</option>
           <option value="volunteer">volunteer</option>
-          <option value="coordinator">coordinator</option>
         </select>
         <input placeholder="District" value={form.district} onChange={(e) => setForm({ ...form, district: e.target.value })} />
         <input placeholder="City" value={form.city} onChange={(e) => setForm({ ...form, city: e.target.value })} />

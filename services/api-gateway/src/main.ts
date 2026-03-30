@@ -68,12 +68,18 @@ const resolveTarget = (pathname: string): string | null => {
     if (
         pathname.startsWith("/api/v1/volunteers") ||
         pathname.startsWith("/api/v1/resources") ||
-        pathname.startsWith("/api/v1/assignments")
+        pathname.startsWith("/api/v1/assignments") ||
+        pathname.startsWith("/api/v1/missions") ||
+        pathname.startsWith("/api/v1/applications")
     ) {
         return routes.volunteer;
     }
 
-    if (pathname.startsWith("/api/v1/notifications") || pathname.startsWith("/api/v1/status-events")) {
+    if (
+        pathname.startsWith("/api/v1/notifications") ||
+        pathname.startsWith("/api/v1/status-events") ||
+        pathname.startsWith("/api/v1/events")
+    ) {
         return routes.notification;
     }
 

@@ -17,6 +17,7 @@ type ServiceUrls = {
     volunteerServiceUrl: string;
     notificationServiceUrl: string;
     apiGatewayUrl: string;
+    notificationWsUrl: string;
 };
 
 const getServiceUrls = (): ServiceUrls => ({
@@ -24,19 +25,23 @@ const getServiceUrls = (): ServiceUrls => ({
     requestServiceUrl: process.env.REQUEST_SERVICE_URL ?? "http://localhost:3002",
     volunteerServiceUrl: process.env.VOLUNTEER_SERVICE_URL ?? "http://localhost:3003",
     notificationServiceUrl: process.env.NOTIFICATION_SERVICE_URL ?? "http://localhost:3004",
-    apiGatewayUrl: process.env.API_GATEWAY_URL ?? "http://localhost:3005"
+    apiGatewayUrl: process.env.API_GATEWAY_URL ?? "http://localhost:3005",
+    notificationWsUrl: process.env.NOTIFICATION_WS_URL ?? process.env.NOTIFICATION_SERVICE_URL ?? "http://localhost:3004"
 });
 
 const getPublicConfig = () => ({
     appName: "ReliefLink",
     apiBaseUrl: process.env.NEXT_PUBLIC_API_BASE_URL ?? process.env.API_GATEWAY_URL ?? "http://localhost:3005",
+    notificationWsUrl: process.env.NOTIFICATION_WS_URL ?? process.env.NOTIFICATION_SERVICE_URL ?? "http://localhost:3004",
     services: {
         auth: "/api/v1/auth",
         users: "/api/v1/users",
         requests: "/api/v1/requests",
         volunteers: "/api/v1/volunteers",
+        missions: "/api/v1/missions",
         resources: "/api/v1/resources",
         assignments: "/api/v1/assignments",
+        applications: "/api/v1/applications",
         notifications: "/api/v1/notifications",
         statusEvents: "/api/v1/status-events"
     }

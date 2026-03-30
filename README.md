@@ -146,3 +146,12 @@ Default local ports:
 - Notification: `3004`
 - API Gateway: `3005`
 - Config Service: `3006`
+
+## 10. Smoke Tests
+
+After starting services (`pnpm dev`), run:
+
+```bash
+pnpm test:api-smoke
+pnpm test:ui-smoke
+```

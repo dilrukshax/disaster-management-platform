@@ -17,12 +17,11 @@ export default function NavBar() {
     <div className="nav">
       <Link href="/dashboard">Dashboard</Link>
       <Link href="/requests">Requests</Link>
-      <Link href="/requests/new">New Request</Link>
       <Link href="/volunteers">Volunteers</Link>
       <Link href="/resources">Resources</Link>
       <Link href="/assignments">Assignments</Link>
       <Link href="/notifications">Notifications</Link>
-      <Link href="/admin">Admin</Link>
+      <Link href="/admin">Super Admin Panel</Link>
       <span>{user ? `${user.fullName} (${user.role})` : "Guest"}</span>
       <button
         onClick={() => {

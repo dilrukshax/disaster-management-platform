@@ -13,6 +13,12 @@ enum VolunteerAvailability {
   offline
 }
 
+enum VolunteerVerificationStatus {
+  pending
+  approved
+  rejected
+}
+
 enum ResourceAvailability {
   available
   reserved
@@ -25,6 +31,12 @@ enum AssignmentStatus {
   completed
 }
 
+enum MissionApplicationStatus {
+  pending
+  accepted
+  rejected
+}
+
 model Volunteer {
   id                 String                @id @default(uuid())
   userId             String                @unique
@@ -32,10 +44,15 @@ model Volunteer {
   district           String
   city               String
   availabilityStatus VolunteerAvailability @default(available)
+  verificationStatus VolunteerVerificationStatus @default(pending)
+  verificationNotes  String?
+  verifiedBy         String?
+  verifiedAt         DateTime?
   createdAt          DateTime              @default(now())
   updatedAt          DateTime              @updatedAt
 
   assignments Assignment[]
+  applications MissionApplication[]
 }
 
 model Resource {
@@ -57,10 +74,29 @@ model Assignment {
   requestId  String
   volunteerId String?
   resourceId String?
+  applicationId String?
   assignedBy String
   status     AssignmentStatus @default(assigned)
   assignedAt DateTime         @default(now())
 
   volunteer Volunteer? @relation(fields: [volunteerId], references: [id])
   resource  Resource?  @relation(fields: [resourceId], references: [id])
+  application MissionApplication? @relation(fields: [applicationId], references: [id])
+}
+
+model MissionApplication {
+  id         String                   @id @default(uuid())
+  requestId  String
+  volunteerId String
+  message    String?
+  status     MissionApplicationStatus @default(pending)
+  createdAt  DateTime                @default(now())
+  updatedAt  DateTime                @updatedAt
+
+  volunteer Volunteer @relation(fields: [volunteerId], references: [id])
+  assignments Assignment[]
+
+  @@index([requestId])
+  @@index([status])
+  @@unique([requestId, volunteerId])
 }
