@@ -1,82 +1,145 @@
 {
-    "version": "2.0.0",
-    "tasks": [
-        {
-            "label": "ReliefLink: Install Dependencies",
-            "type": "shell",
-            "command": "pnpm install",
-            "group": "build",
-            "problemMatcher": []
-        },
-        {
-            "label": "ReliefLink: Prisma Generate (All Services)",
-            "type": "shell",
-            "command": "zsh",
-            "args": [
-                "-lc",
-                "set -a && source .env && set +a && pnpm --filter @relieflink/auth-service prisma:generate && pnpm --filter @relieflink/request-service prisma:generate && pnpm --filter @relieflink/volunteer-service prisma:generate && pnpm --filter @relieflink/notification-service prisma:generate"
-            ],
-            "problemMatcher": []
-        },
-        {
-            "label": "ReliefLink: Prisma Migrate (All Services)",
-            "type": "shell",
-            "command": "zsh",
-            "args": [
-                "-lc",
-                "set -a && source .env && set +a && pnpm --filter @relieflink/auth-service prisma:migrate && pnpm --filter @relieflink/request-service prisma:migrate && pnpm --filter @relieflink/volunteer-service prisma:migrate && pnpm --filter @relieflink/notification-service prisma:migrate"
-            ],
-            "problemMatcher": []
-        },
-        {
-            "label": "ReliefLink: Build All",
-            "type": "shell",
-            "command": "pnpm build",
-            "group": "build",
-            "problemMatcher": []
-        },
-        {
-            "label": "ReliefLink: Run Full Stack (Dev)",
-            "type": "shell",
-            "command": "zsh",
-            "args": [
-                "-lc",
-                "set -a && source .env && set +a && pnpm dev"
-            ],
-            "isBackground": true,
-            "problemMatcher": []
-        },
-        {
-            "label": "ReliefLink: Run Web Only",
-            "type": "shell",
-            "command": "zsh",
-            "args": [
-                "-lc",
-                "set -a && source .env && set +a && pnpm dev:web"
-            ],
-            "isBackground": true,
-            "problemMatcher": []
-        },
-        {
-            "label": "ReliefLink: Health Check APIs",
-            "type": "shell",
-            "command": "zsh",
-            "args": [
-                "-lc",
-                "curl -s http://localhost:3006/health && echo && curl -s http://localhost:3005/health && echo && curl -s http://localhost:3001/health && echo && curl -s http://localhost:3002/health && echo && curl -s http://localhost:3003/health && echo && curl -s http://localhost:3004/health && echo"
-            ],
-            "problemMatcher": []
-        },
-        {
-            "label": "ReliefLink: Setup (Install + Generate + Migrate + Build)",
-            "dependsOrder": "sequence",
-            "dependsOn": [
-                "ReliefLink: Install Dependencies",
-                "ReliefLink: Prisma Generate (All Services)",
-                "ReliefLink: Prisma Migrate (All Services)",
-                "ReliefLink: Build All"
-            ],
-            "problemMatcher": []
-        }
-    ]
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "ReliefLink: Check Tooling (Node + pnpm)",
+      "type": "shell",
+      "command": "zsh",
+      "args": [
+        "-lc",
+        "if ! command -v node >/dev/null 2>&1; then echo 'Node.js is not installed. Install Node.js 20+ first.' && exit 1; fi; if command -v pnpm >/dev/null 2>&1; then pnpm --version; elif command -v corepack >/dev/null 2>&1; then corepack pnpm --version; else echo 'pnpm is not installed. Install pnpm or enable corepack.' && exit 1; fi"
+      ],
+      "problemMatcher": []
+    },
+    {
+      "label": "ReliefLink: Install Dependencies",
+      "type": "shell",
+      "command": "zsh",
+      "args": [
+        "-lc",
+        "if command -v pnpm >/dev/null 2>&1; then pnpm install; elif command -v corepack >/dev/null 2>&1; then corepack pnpm install; else echo 'pnpm is not installed. Install pnpm or enable corepack.' && exit 1; fi"
+      ],
+      "group": "build",
+      "problemMatcher": []
+    },
+    {
+      "label": "ReliefLink: Prisma Generate (All Services)",
+      "type": "shell",
+      "command": "zsh",
+      "args": [
+        "-lc",
+        "if [ -f .env ]; then set -a && source .env && set +a; fi; if command -v pnpm >/dev/null 2>&1; then pnpm --filter @relieflink/auth-service prisma:generate && pnpm --filter @relieflink/request-service prisma:generate && pnpm --filter @relieflink/volunteer-service prisma:generate && pnpm --filter @relieflink/notification-service prisma:generate; elif command -v corepack >/dev/null 2>&1; then corepack pnpm --filter @relieflink/auth-service prisma:generate && corepack pnpm --filter @relieflink/request-service prisma:generate && corepack pnpm --filter @relieflink/volunteer-service prisma:generate && corepack pnpm --filter @relieflink/notification-service prisma:generate; else echo 'pnpm is not installed. Install pnpm or enable corepack.' && exit 1; fi"
+      ],
+      "problemMatcher": []
+    },
+    {
+      "label": "ReliefLink: Prisma Migrate (All Services)",
+      "type": "shell",
+      "command": "zsh",
+      "args": [
+        "-lc",
+        "if [ -f .env ]; then set -a && source .env && set +a; fi; if command -v pnpm >/dev/null 2>&1; then pnpm --filter @relieflink/auth-service prisma:migrate && pnpm --filter @relieflink/request-service prisma:migrate && pnpm --filter @relieflink/volunteer-service prisma:migrate && pnpm --filter @relieflink/notification-service prisma:migrate; elif command -v corepack >/dev/null 2>&1; then corepack pnpm --filter @relieflink/auth-service prisma:migrate && corepack pnpm --filter @relieflink/request-service prisma:migrate && corepack pnpm --filter @relieflink/volunteer-service prisma:migrate && corepack pnpm --filter @relieflink/notification-service prisma:migrate; else echo 'pnpm is not installed. Install pnpm or enable corepack.' && exit 1; fi"
+      ],
+      "problemMatcher": []
+    },
+    {
+      "label": "ReliefLink: Build All",
+      "type": "shell",
+      "command": "zsh",
+      "args": [
+        "-lc",
+        "if command -v pnpm >/dev/null 2>&1; then pnpm build; elif command -v corepack >/dev/null 2>&1; then corepack pnpm build; else echo 'pnpm is not installed. Install pnpm or enable corepack.' && exit 1; fi"
+      ],
+      "group": "build",
+      "problemMatcher": []
+    },
+    {
+      "label": "ReliefLink: Run Full Stack (Dev)",
+      "type": "shell",
+      "command": "zsh",
+      "args": [
+        "-lc",
+        "if [ -f .env ]; then set -a && source .env && set +a; fi; if command -v pnpm >/dev/null 2>&1; then pnpm dev; elif command -v corepack >/dev/null 2>&1; then corepack pnpm dev; else echo 'pnpm is not installed. Install pnpm or enable corepack.' && exit 1; fi"
+      ],
+      "isBackground": true,
+      "group": {
+        "kind": "test",
+        "isDefault": true
+      },
+      "problemMatcher": []
+    },
+    {
+      "label": "ReliefLink: Run Web Only",
+      "type": "shell",
+      "command": "zsh",
+      "args": [
+        "-lc",
+        "if [ -f .env ]; then set -a && source .env && set +a; fi; if command -v pnpm >/dev/null 2>&1; then pnpm dev:web; elif command -v corepack >/dev/null 2>&1; then corepack pnpm dev:web; else echo 'pnpm is not installed. Install pnpm or enable corepack.' && exit 1; fi"
+      ],
+      "isBackground": true,
+      "problemMatcher": []
+    },
+    {
+      "label": "ReliefLink: Health Check APIs",
+      "type": "shell",
+      "command": "zsh",
+      "args": [
+        "-lc",
+        "curl -s http://localhost:3006/health && echo && curl -s http://localhost:3005/health && echo && curl -s http://localhost:3001/health && echo && curl -s http://localhost:3002/health && echo && curl -s http://localhost:3003/health && echo && curl -s http://localhost:3004/health && echo"
+      ],
+      "problemMatcher": []
+    },
+    {
+      "label": "ReliefLink: Smoke API",
+      "type": "shell",
+      "command": "zsh",
+      "args": [
+        "-lc",
+        "if command -v pnpm >/dev/null 2>&1; then pnpm test:api-smoke; elif command -v corepack >/dev/null 2>&1; then corepack pnpm test:api-smoke; else echo 'pnpm is not installed. Install pnpm or enable corepack.' && exit 1; fi"
+      ],
+      "problemMatcher": []
+    },
+    {
+      "label": "ReliefLink: Smoke UI",
+      "type": "shell",
+      "command": "zsh",
+      "args": [
+        "-lc",
+        "if command -v pnpm >/dev/null 2>&1; then pnpm test:ui-smoke; elif command -v corepack >/dev/null 2>&1; then corepack pnpm test:ui-smoke; else echo 'pnpm is not installed. Install pnpm or enable corepack.' && exit 1; fi"
+      ],
+      "problemMatcher": []
+    },
+    {
+      "label": "ReliefLink: Smoke (API + UI)",
+      "dependsOrder": "sequence",
+      "dependsOn": [
+        "ReliefLink: Smoke API",
+        "ReliefLink: Smoke UI"
+      ],
+      "problemMatcher": []
+    },
+    {
+      "label": "ReliefLink: Setup (Tooling + Install + Generate + Migrate + Build)",
+      "dependsOrder": "sequence",
+      "dependsOn": [
+        "ReliefLink: Check Tooling (Node + pnpm)",
+        "ReliefLink: Install Dependencies",
+        "ReliefLink: Prisma Generate (All Services)",
+        "ReliefLink: Prisma Migrate (All Services)",
+        "ReliefLink: Build All"
+      ],
+      "problemMatcher": []
+    },
+    {
+      "label": "ReliefLink: Prepare Dev (Tooling + Install + Generate + Migrate)",
+      "dependsOrder": "sequence",
+      "dependsOn": [
+        "ReliefLink: Check Tooling (Node + pnpm)",
+        "ReliefLink: Install Dependencies",
+        "ReliefLink: Prisma Generate (All Services)",
+        "ReliefLink: Prisma Migrate (All Services)"
+      ],
+      "problemMatcher": []
+    }
+  ]
 }

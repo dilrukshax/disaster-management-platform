@@ -1,26 +1,41 @@
 {
-    "version": "0.2.0",
-    "configurations": [
-        {
-            "name": "ReliefLink: Full Stack Dev (Gateway + Config)",
-            "type": "node-terminal",
-            "request": "launch",
-            "command": "zsh -lc 'set -a && source .env && set +a && pnpm dev'",
-            "cwd": "${workspaceFolder}"
-        },
-        {
-            "name": "ReliefLink: Web Dev Only",
-            "type": "node-terminal",
-            "request": "launch",
-            "command": "zsh -lc 'set -a && source .env && set +a && pnpm dev:web'",
-            "cwd": "${workspaceFolder}"
-        },
-        {
-            "name": "ReliefLink: Build All",
-            "type": "node-terminal",
-            "request": "launch",
-            "command": "pnpm build",
-            "cwd": "${workspaceFolder}"
-        }
-    ]
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "ReliefLink: Full Stack Dev (All Services + Web)",
+      "type": "node-terminal",
+      "request": "launch",
+      "preLaunchTask": "ReliefLink: Prepare Dev (Tooling + Install + Generate + Migrate)",
+      "command": "zsh -lc 'if [ -f .env ]; then set -a && source .env && set +a; fi; if command -v pnpm >/dev/null 2>&1; then pnpm dev; elif command -v corepack >/dev/null 2>&1; then corepack pnpm dev; else echo \"pnpm is not installed. Install pnpm or enable corepack.\" && exit 1; fi'",
+      "cwd": "${workspaceFolder}"
+    },
+    {
+      "name": "ReliefLink: Web Dev Only",
+      "type": "node-terminal",
+      "request": "launch",
+      "command": "zsh -lc 'if [ -f .env ]; then set -a && source .env && set +a; fi; if command -v pnpm >/dev/null 2>&1; then pnpm dev:web; elif command -v corepack >/dev/null 2>&1; then corepack pnpm dev:web; else echo \"pnpm is not installed. Install pnpm or enable corepack.\" && exit 1; fi'",
+      "cwd": "${workspaceFolder}"
+    },
+    {
+      "name": "ReliefLink: Build All",
+      "type": "node-terminal",
+      "request": "launch",
+      "command": "zsh -lc 'if command -v pnpm >/dev/null 2>&1; then pnpm build; elif command -v corepack >/dev/null 2>&1; then corepack pnpm build; else echo \"pnpm is not installed. Install pnpm or enable corepack.\" && exit 1; fi'",
+      "cwd": "${workspaceFolder}"
+    },
+    {
+      "name": "ReliefLink: Smoke API",
+      "type": "node-terminal",
+      "request": "launch",
+      "command": "zsh -lc 'if command -v pnpm >/dev/null 2>&1; then pnpm test:api-smoke; elif command -v corepack >/dev/null 2>&1; then corepack pnpm test:api-smoke; else echo \"pnpm is not installed. Install pnpm or enable corepack.\" && exit 1; fi'",
+      "cwd": "${workspaceFolder}"
+    },
+    {
+      "name": "ReliefLink: Smoke UI",
+      "type": "node-terminal",
+      "request": "launch",
+      "command": "zsh -lc 'if command -v pnpm >/dev/null 2>&1; then pnpm test:ui-smoke; elif command -v corepack >/dev/null 2>&1; then corepack pnpm test:ui-smoke; else echo \"pnpm is not installed. Install pnpm or enable corepack.\" && exit 1; fi'",
+      "cwd": "${workspaceFolder}"
+    }
+  ]
 }
