@@ -1,7 +1,7 @@
 import cors from "cors";
 import dotenv from "dotenv";
 import express from "express";
-import { DeliveryStatus, NotificationChannel, PrismaClient } from "../generated/client/index.js";
+import { DeliveryStatus, NotificationChannel, PrismaClient } from "@prisma/client";
 import { z } from "zod";
 
 dotenv.config({ path: "../../.env" });

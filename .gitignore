@@ -1,8 +1,10 @@
 node_modules
-.dist
+dist
 .next
 coverage
 .env
 .env.local
 *.log
 .DS_Store
+services/*/dist
+services/*/generated

@@ -2,7 +2,7 @@ import cors from "cors";
 import dotenv from "dotenv";
 import express, { NextFunction, Request, Response } from "express";
 import jwt from "jsonwebtoken";
-import { AssignmentStatus, PrismaClient, ResourceAvailability, VolunteerAvailability } from "../generated/client/index.js";
+import { AssignmentStatus, PrismaClient, ResourceAvailability, VolunteerAvailability } from "@prisma/client";
 import { z } from "zod";
 
 dotenv.config({ path: "../../.env" });
