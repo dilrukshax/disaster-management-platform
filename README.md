@@ -4,6 +4,10 @@
 
 This platform supports disaster-response coordination with one shared web portal and backend microservices.
 
+Current implementation status (Phase 1):
+- implemented: `auth-service`, `api-gateway`, and `apps/web` authentication flow
+- planned next: `request-service`, `volunteer-service`, `notification-service`, `config-service`
+
 Main goals:
 - let affected people quickly send a **Need Help** request
 - show rescue progress with a **Sri Lanka mission map** and live mission status
@@ -141,11 +145,9 @@ pnpm dev
 Default local ports:
 - Web: `3000`
 - Auth: `3001`
-- Request: `3002`
-- Volunteer: `3003`
-- Notification: `3004`
 - API Gateway: `3005`
-- Config Service: `3006`
+
+Note: In this phase, only auth + gateway + web are implemented and started by `pnpm dev`.
 
 ## 10. Smoke Tests
 

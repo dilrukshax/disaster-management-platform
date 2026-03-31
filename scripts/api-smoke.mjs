@@ -1,21 +1,26 @@
 const API_BASE = process.env.API_BASE_URL ?? "http://localhost:3005";
 
-const json = (value) => JSON.stringify(value);
+const toJson = (value) => JSON.stringify(value);
 
-async function api(path, options = {}, token) {
-  const headers = new Headers(options.headers || {});
-  headers.set("Content-Type", "application/json");
+async function api(path, { method = "GET", body, token } = {}) {
+  const headers = new Headers();
+  if (body !== undefined) {
+    headers.set("Content-Type", "application/json");
+  }
+
   if (token) {
     headers.set("Authorization", `Bearer ${token}`);
   }
 
   const response = await fetch(`${API_BASE}${path}`, {
-    ...options,
-    headers
+    method,
+    headers,
+    body: body !== undefined ? toJson(body) : undefined
   });
 
   const text = await response.text();
   let payload = null;
+
   if (text) {
     try {
       payload = JSON.parse(text);
@@ -24,11 +29,13 @@ async function api(path, options = {}, token) {
     }
   }
 
-  if (!response.ok) {
-    throw new Error(`${response.status} ${path}: ${typeof payload === "string" ? payload : JSON.stringify(payload)}`);
-  }
+  return { response, payload };
+}
 
-  return payload;
+function assert(condition, message) {
+  if (!condition) {
+    throw new Error(message);
+  }
 }
 
 async function run() {
@@ -36,150 +43,80 @@ async function run() {
 
   const adminLogin = await api("/api/v1/auth/login", {
     method: "POST",
-    body: json({ email: "coordinator@relieflink.local", password: "Admin@123" })
+    body: { email: "coordinator@relieflink.local", password: "Admin@123" }
   });
 
-  const requester = await api("/api/v1/auth/register", {
+  assert(adminLogin.response.ok, "Admin login failed");
+  const adminToken = adminLogin.payload?.token;
+  assert(adminToken, "Admin token missing");
+
+  const requesterEmail = `requester.${stamp}@relieflink.local`;
+  const volunteerEmail = `volunteer.${stamp}@relieflink.local`;
+
+  const requesterRegister = await api("/api/v1/auth/register", {
     method: "POST",
-    body: json({
+    body: {
       fullName: `Requester ${stamp}`,
-      email: `requester.${stamp}@relieflink.local`,
+      email: requesterEmail,
       phone: `+9477${String(stamp).slice(-7)}`,
       password: "Requester@123",
       role: "requester",
       district: "Colombo",
       city: "Colombo"
-    })
+    }
   });
 
-  const volunteer = await api("/api/v1/auth/register", {
+  assert(requesterRegister.response.status === 201, "Requester registration failed");
+  const requesterToken = requesterRegister.payload?.token;
+  const requesterId = requesterRegister.payload?.user?.id;
+  assert(requesterToken && requesterId, "Requester token or user id missing");
+
+  const volunteerRegister = await api("/api/v1/auth/register", {
     method: "POST",
-    body: json({
+    body: {
       fullName: `Volunteer ${stamp}`,
-      email: `volunteer.${stamp}@relieflink.local`,
+      email: volunteerEmail,
       phone: `+9476${String(stamp).slice(-7)}`,
       password: "Volunteer@123",
       role: "volunteer",
       district: "Gampaha",
       city: "Negombo"
-    })
+    }
   });
 
-  const mission = await api(
-    "/api/v1/requests",
-    {
-      method: "POST",
-      body: json({
-        category: "rescue",
-        description: "Flood rescue needed near junction",
-        urgency: "high",
-        district: "Colombo",
-        city: "Colombo",
-        addressLine: "Galle Face, Colombo",
-        peopleCount: 4
-      })
-    },
-    requester.token
-  );
+  assert(volunteerRegister.response.status === 201, "Volunteer registration failed");
 
-  await api(
-    "/api/v1/volunteers",
-    {
-      method: "POST",
-      body: json({
-        userId: volunteer.user.id,
-        skillSet: ["first aid", "evacuation"],
-        district: "Gampaha",
-        city: "Negombo",
-        availabilityStatus: "available"
-      })
-    },
-    volunteer.token
-  );
+  const loginFailure = await api("/api/v1/auth/login", {
+    method: "POST",
+    body: { email: requesterEmail, password: "invalid-password" }
+  });
 
-  const pendingVolunteers = await api(
-    "/api/v1/volunteers?verificationStatus=pending",
-    { method: "GET" },
-    adminLogin.token
-  );
+  assert(loginFailure.response.status === 401, "Expected 401 for invalid login");
 
-  const pendingVolunteer = pendingVolunteers.find((item) => item.userId === volunteer.user.id);
-  if (!pendingVolunteer) {
-    throw new Error("Pending volunteer was not found");
-  }
+  const me = await api("/api/v1/auth/me", {
+    method: "GET",
+    token: requesterToken
+  });
 
-  await api(
-    `/api/v1/volunteers/${pendingVolunteer.id}/verification`,
-    {
-      method: "PATCH",
-      body: json({ verificationStatus: "approved", verificationNotes: "Smoke test approval" })
-    },
-    adminLogin.token
-  );
+  assert(me.response.ok, "Requester /me failed");
+  assert(me.payload?.email === requesterEmail, "Requester /me email mismatch");
 
-  await api(
-    `/api/v1/missions/${mission.id}/applications`,
-    {
-      method: "POST",
-      body: json({ message: "Ready for immediate rescue dispatch" })
-    },
-    volunteer.token
-  );
+  const roleUpdate = await api(`/api/v1/users/${requesterId}/role`, {
+    method: "PATCH",
+    token: adminToken,
+    body: { role: "coordinator" }
+  });
 
-  const pendingApplications = await api(
-    "/api/v1/applications?status=pending",
-    { method: "GET" },
-    adminLogin.token
-  );
+  assert(roleUpdate.response.ok, "Admin role update failed");
+  assert(roleUpdate.payload?.role === "coordinator", "Role update response mismatch");
 
-  const application = pendingApplications.find((item) => item.requestId === mission.id && item.volunteer.userId === volunteer.user.id);
-  if (!application) {
-    throw new Error("Pending mission application was not found");
-  }
+  const requesterRelogin = await api("/api/v1/auth/login", {
+    method: "POST",
+    body: { email: requesterEmail, password: "Requester@123" }
+  });
 
-  await api(
-    `/api/v1/applications/${application.id}/status`,
-    {
-      method: "PATCH",
-      body: json({ status: "accepted" })
-    },
-    adminLogin.token
-  );
-
-  await api(
-    "/api/v1/assignments",
-    {
-      method: "POST",
-      body: json({
-        requestId: mission.id,
-        applicationId: application.id
-      })
-    },
-    adminLogin.token
-  );
-
-  await api(
-    `/api/v1/requests/${mission.id}/status`,
-    {
-      method: "PATCH",
-      body: json({ status: "in_progress" })
-    },
-    volunteer.token
-  );
-
-  await api(
-    `/api/v1/requests/${mission.id}/status`,
-    {
-      method: "PATCH",
-      body: json({ status: "completed" })
-    },
-    volunteer.token
-  );
-
-  const timeline = await api(`/api/v1/status-events/request/${mission.id}`, { method: "GET" }, adminLogin.token);
-  if (!timeline.length || timeline[0].newStatus !== "completed") {
-    throw new Error("Mission timeline did not end in completed status");
-  }
+  assert(requesterRelogin.response.ok, "Requester re-login failed after role update");
+  assert(requesterRelogin.payload?.user?.role === "coordinator", "Expected updated role on login response");
 
   console.log("API smoke test passed");
 }

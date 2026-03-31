@@ -2,7 +2,7 @@
   "version": "0.2.0",
   "configurations": [
     {
-      "name": "ReliefLink: Full Stack Dev (All Services + Web)",
+      "name": "ReliefLink: Full Stack Dev (Auth + Gateway + Web)",
       "type": "node-terminal",
       "request": "launch",
       "preLaunchTask": "ReliefLink: Prepare Dev (Tooling + Install + Generate + Migrate)",
